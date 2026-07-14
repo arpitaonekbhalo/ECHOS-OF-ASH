@@ -2,6 +2,7 @@
 #include "player.h"
 #include "zombie.h"
 #include <math.h>
+static Texture2D levelBackground;
 /*player is locked in a room.Must pick a lock*/
 #define STAGES_TO_WIN 3
 #define TIME_LIMIT 45.0f
@@ -20,6 +21,10 @@ static void PickNewTargetZone(void)
 }
 void Level1_Init(GameData *gd)
 {
+  levelBackground = LoadTexture("assets/level1_bg.png");
+
+  TraceLog(LOG_INFO, "Texture ID: %d", levelBackground.id);
+  TraceLog(LOG_INFO, "BG size: %d x %d", levelBackground.width, levelBackground.height);
   roomBounds = (Rectangle){40,90, SCREEN_WIDTH - 80, SCREEN_HEIGHT - 130};
   Player_Init(&gd->player, (Vector2){SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f});
   gd->zombieCount = 0;
@@ -71,7 +76,15 @@ void Level1_Update(GameData *gd, float dt)
 }
 void Level1_Draw(GameData *gd)
 {
-    ClearBackground((Color){20,20,24,255});
+    ClearBackground(BLACK);
+    DrawTexturePro(
+    levelBackground,
+    (Rectangle){0, 0, levelBackground.width, levelBackground.height},
+    (Rectangle){0, 29, SCREEN_WIDTH, SCREEN_HEIGHT},
+    (Vector2){0, 0},
+    0,
+    WHITE
+    );
     DrawRectangleLinesEx(roomBounds, 3, GRAY);
     DrawText("LEVEL 1 - ESCAPE THE ROOM", 40, 20, 22, RED);
     DrawText(TextFormat("Coins: %d", gd->totalCoins), 40, 50, 18, GOLD);
