@@ -13,6 +13,8 @@ void Player_Init(Player *p,Vector2 startPos)
     p->maxHealth=100;
     p->health=100;
 
+    p->texture = LoadTexture("assets/player.png");
+
 }
 void Player_Update(Player *p,Rectangle roomBounds,float dt)
 {
@@ -53,8 +55,20 @@ void Player_Update(Player *p,Rectangle roomBounds,float dt)
     p->position.y=roomBounds.y+roomBounds.height - p->size.y;
 
 }
+
 void Player_Draw(Player *p)
 {
-    DrawRectangleV(p->position,p->size,SKYBLUE);
-    DrawRectangleLines((int)p->position.x,(int)p->position.y,(int)p->size.x,(int)p->size.y,DARKBLUE);
+    float scale = 1.5f;   //change to adjust the size
+    Vector2 drawPos = {
+        p->position.x - (p->texture.width * scale - p->size.x) / 2,
+        p->position.y - (p->texture.height * scale - p->size.y)
+    };
+
+    DrawTextureEx(
+        p->texture,
+        drawPos,
+        0.0f,
+        scale,
+        WHITE
+    );
 }

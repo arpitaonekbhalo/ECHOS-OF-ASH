@@ -19,13 +19,15 @@ typedef enum GameScreen {
 
 typedef struct Player {
 
+    // collision box
     Vector2 position;
     Vector2 size;
     float speed;
     bool alive;
     int health;
     int maxHealth;
-    float hitCooldown;
+
+    Texture2D texture;
 
 } Player;
 
@@ -37,6 +39,8 @@ typedef struct Zombie {
     bool alive;
     int health;
     float hitCooldown;
+
+    Texture2D texture;
 
 } Zombie;
 

@@ -10,6 +10,7 @@ void Zombie_Spawn(Zombie z[], int *count, Vector2 pos, float speed){
   z[*count].alive = true;
   z[*count].health = 30;
   z[*count].hitCooldown= 0.0f;
+  z[*count].texture = LoadTexture("assets/zombie.png");
   (*count)++;
 }
 
@@ -61,10 +62,25 @@ void Zombie_UpdateAll(Zombie z[], int count, Player *player, Rectangle roomBound
   }
 }
 
-void Zombie_DrawAll(Zombie z[], int count){
-  for(int i=0;i<count;i++){
-    if(!z[i].alive) continue;
-    DrawRectangleV(z[i].position, z[i].size,MAROON);
-    DrawRectangleLines((int)z[i].position.x, (int)z[i].position.y, (int)z[i].size.x, (int)z[i].size.y, BLACK);
-  }
+void Zombie_DrawAll(Zombie z[], int count)
+{
+    float scale = 0.4f;   // shrink zombie image
+
+    for(int i=0;i<count;i++)
+    {
+        if(!z[i].alive) continue;
+
+        Vector2 drawPos = {
+            z[i].position.x - (z[i].texture.width * scale - z[i].size.x) / 2,
+            z[i].position.y - (z[i].texture.height * scale - z[i].size.y)
+        };
+
+        DrawTextureEx(
+            z[i].texture,
+            drawPos,
+            0.0f,
+            scale,
+            WHITE
+        );
+    }
 }
