@@ -4,15 +4,9 @@
 #include "raylib.h"
 #include <stdbool.h>
 
-/*SCREEN SIZE AND HOW MANY ZOMBIES AND HOW MANY ZOMBIES  WE ALLOW AT ONCE */
-
-
-
 #define SCREEN_WIDTH 960
 #define SCREEN_HEIGHT 540
 #define MAX_ZOMBIES 6
-
-/*THIS TELLS THE GAME WHICH 'SCREEN' IS CURRENTLY SHOWING */
 
 typedef enum GameScreen {
     SCREEN_MENU=0,
@@ -23,23 +17,28 @@ typedef enum GameScreen {
     SCREEN_WIN
 } GameScreen;
 
-/*NOW COMES THE EVERYTHING OF THE PLAYER CHARACTER*/
-
-
 typedef struct Player {
 
-    Vector2 position; /*player in (x,y) coordinate*/
-    Vector2 size; /*how big the player's box is*/
+    Vector2 position;
+    Vector2 size;
     float speed;
     bool alive;
     int health;
-    float hitCooldown; /* stops one zombie hitting us many times per second */
+    int maxHealth;
+    float hitCooldown;
 
+} Player;
+
+typedef struct Zombie {
+
+    Vector2 position;
+    Vector2 size;
+    float speed;
+    bool alive;
+    int health;
+    float hitCooldown;
 
 } Zombie;
-
-/*This holds everything to remember like coins players health.main.c creates and every level function gets a pointer to it*/
-
 
 typedef struct GameData {
     Player  player;

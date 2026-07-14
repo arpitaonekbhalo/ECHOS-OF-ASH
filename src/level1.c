@@ -20,7 +20,7 @@ static void PickNewTargetZone(void)
 }
 void Level1_Init(GameData *gd)
 {
-  roombounds = (Rectangle){40,90, SCREEN_WIDTH - 80, SCREEN_HEIGHT - 130};
+  roomBounds = (Rectangle){40,90, SCREEN_WIDTH - 80, SCREEN_HEIGHT - 130};
   Player_Init(&gd->player, (Vector2){SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f});
   gd->zombieCount = 0;
   Zombie_Spawn(gd->zombies, &gd->zombieCount, (Vector2){100,120}, 60.0f);
@@ -35,7 +35,7 @@ void Level1_Update(GameData *gd, float dt)
     if (levelFinished) return;
     timer -= dt;
     Player_Update(&gd->player, roomBounds, dt);
-    Zombie_Update(gd->zombies, gd->zombieCount, &gd->player, roomBounds, dt);
+    Zombie_UpdateAll(gd->zombies, gd->zombieCount, &gd->player, roomBounds, dt);
     if(IsKeyPressed(KEY_SPACE))
     {
         /*location of the marker,0=left edge,1=right edge*/
@@ -72,7 +72,7 @@ void Level1_Update(GameData *gd, float dt)
 void Level1_Draw(GameData *gd)
 {
     ClearBackground((Color){20,20,24,255});
-    DrawRectangleLinesEx(roomBounds, 3, Gray);
+    DrawRectangleLinesEx(roomBounds, 3, GRAY);
     DrawText("LEVEL 1 - ESCAPE THE ROOM", 40, 20, 22, RED);
     DrawText(TextFormat("Coins: %d", gd->totalCoins), 40, 50, 18, GOLD);
     DrawText(TextFormat("Health: %d", gd->player.health), 780, 50, 18, GREEN);
@@ -86,5 +86,5 @@ void Level1_Draw(GameData *gd)
     float dialValue = (sinf((float)GetTime() * DIAL_SPEED) + 1.0f) / 2.0f;
     int markerX = barX + (int)(dialValue * barW);
     DrawRectangle(markerX - 2, barY - 6, 4, barH + 12, WHITE);
-    DrawText(TextFormat("Stage %d / %d", - Press SPACE when marker is in green zone", stagesCompleted, STAGES_TO_WIN), barX - 120, barY - 30, 16, LIGHGRAY);
+    DrawText(TextFormat("Stage %d / %d - Press SPACE when marker is in green zone", stagesCompleted, STAGES_TO_WIN), barX - 120, barY - 30, 16, LIGHTGRAY);
 }

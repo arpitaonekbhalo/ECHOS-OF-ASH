@@ -1,4 +1,4 @@
-SRC = src/main.c src/player.c src/zombie.c src/level1.c src/level2.c src/level3.c
+SRC = src/main.c src/player.c src/zombie.c src/level1.c 
 OUT = ECHOES_OF_ASH
 
 ifeq ($(OS),Windows_NT)

@@ -8,7 +8,7 @@ static float currentSpeedY=0;
 void Player_Init(Player *p,Vector2 startPos)
 {
     p->position = startPos;
-    p->size=(Vector2) {28,28}
+    p->size=(Vector2) {28,28};
     p->speed=220.0f;
     p->maxHealth=100;
     p->health=100;
@@ -20,10 +20,10 @@ void Player_Update(Player *p,Rectangle roomBounds,float dt)
 
     float wantX=0;
     float wantY=0;
-    if(iskeydown(key_w) || iskeydown(key_up)) wanty=-1;
-    if(iskeydown(key_s) || iskeydown(key_down)) wanty=1;
-    if(iskeydown(key_a) || iskeydown(key_left)) wantx=-1;
-    if(iskeydown(key_d) || iskeydown(key_right)) wantx=1;
+    if(IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) wantY=-1;
+    if(IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) wantY=1;
+    if(IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) wantX=-1;
+    if(IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) wantX=1;
 
     /*turn direction into a target speed*/
 
@@ -34,7 +34,7 @@ void Player_Update(Player *p,Rectangle roomBounds,float dt)
     changing 0.15f-bigger=snappier,smaller=floater*/
 
     float nudgeAmount=0.15f;
-    currentspeedX=currentSpeedX+(targetSpeedX-currentSpeedX)*nudgeAmount;
+    currentSpeedX=currentSpeedX+(targetSpeedX-currentSpeedX)*nudgeAmount;
     currentSpeedY=currentSpeedY+(targetSpeedY-currentSpeedY)*nudgeAmount;
 
     /*moving the player */
