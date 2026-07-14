@@ -9,10 +9,10 @@ ifeq ($(OS),Windows_NT)
     RM = del
 else
     CC = clang
-    CFLAG = -Wall -std=c99 -Isrc -I/opt/homebrew/include
+    CFLAGS = -Wall -std=c99 -Isrc -I/opt/homebrew/include
     LDFLAGS = -L/opt/homebrew/lib -lraylib \
               -framework CoreVideo -framework IOKit -framework Cocoa \
-              -framework OpenGL -framework GLUT
+              -framework OpenGL
     RM      = rm -f
 endif
 
