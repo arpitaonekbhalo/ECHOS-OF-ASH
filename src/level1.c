@@ -50,7 +50,7 @@ void Level1_Update(GameData *gd, float dt)
                 if (bonus < 0) bonus = 0;
                 gd->totalCoins += bonus;
                 levelFinished = true;
-                gd->currentScreen = SCREEN_LEVEL2;
+                gd->currentScreen = SCREEN_WIN;
                 return;            
             }
             PickNewTargetZone();
