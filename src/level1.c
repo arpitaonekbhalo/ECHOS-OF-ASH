@@ -15,7 +15,7 @@ static bool levelFinished;
 /*player picks a random safe zone */
 static void PickNewTargetZone(void)
 {
-    int start = GetRandomValue(0, 70);
+    int start = GetRandomValue(0, 0);
     targetMin = start / 100.0f;
     targetMax = (start + 15) / 100.0f;
 }
