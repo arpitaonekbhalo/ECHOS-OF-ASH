@@ -2,12 +2,13 @@
 #include "player.h"
 #include "zombie.h"
 #include <math.h>
-static Texture2D levelBackground;
+/*static Texture2D levelBackground;*/
 /*player is locked in a room.Must pick a lock*/
 #define STAGES_TO_WIN 3
 #define TIME_LIMIT 45.0f
 #define DIAL_SPEED 2.5f
-static Rectangle roomBounds;
+/*static Rectangle roomBounds;*/
+static Vector3 roomMin, roomMax;
 static int stagesCompleted;
 static float timer;
 static float targetMin, targetMax;
@@ -21,15 +22,22 @@ static void PickNewTargetZone(void)
 }
 void Level1_Init(GameData *gd)
 {
-  levelBackground = LoadTexture("assets/level1_bg.png");
-
-  TraceLog(LOG_INFO, "Texture ID: %d", levelBackground.id);
+    roomMin = (Vector3){-8.0f, 0.0f, -8.0f};
+    roomMax = (Vector3){8.0f, 0.0f, 8.0f};
+  /*levelBackground = LoadTexture("assets/level1_bg.png");*/
+  Player_Init(&gd->player, (Vector3){0.0f, 0.0f, 0.0f});
+  /*TraceLog(LOG_INFO, "Texture ID: %d", levelBackground.id);
   TraceLog(LOG_INFO, "BG size: %d x %d", levelBackground.width, levelBackground.height);
   roomBounds = (Rectangle){40,90, SCREEN_WIDTH - 80, SCREEN_HEIGHT - 130};
-  Player_Init(&gd->player, (Vector2){SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f});
+  Player_Init(&gd->player, (Vector2){SCREEN_WIDTH/2.0f, SCREEN_HEIGHT/2.0f});*/
   gd->zombieCount = 0;
-  Zombie_Spawn(gd->zombies, &gd->zombieCount, (Vector2){100,120}, 60.0f);
-  Zombie_Spawn(gd->zombies, &gd->zombieCount, (Vector2){800,400}, 70.0f);
+  Zombie_Spawn(gd->zombies, &gd->zombieCount, (Vector3){-5.0f, 0.0f, -5.0f}, 1.6f);
+  Zombie_Spawn(gd->zombies, &gd->zombieCount, (Vector3){5.0f, 0.0f, 5.0f}, 1.8f);
+  gd->camera.position = (Vector3){0.0f, 6.0f, 8.0f};
+  gd->camera.target = (Vector3){0.0f, 1.0f, 0.0f};
+  gd->camera.up = (Vector3){0.0f, 1.0f, 0.0f};
+  gd->camera.fovy = 45.0f;
+  gd->camera.projection = CAMERA_PERSPECTIVE;
   stagesCompleted = 0;
   timer = TIME_LIMIT;
   levelFinished = false;
@@ -39,8 +47,12 @@ void Level1_Update(GameData *gd, float dt)
 {
     if (levelFinished) return;
     timer -= dt;
-    Player_Update(&gd->player, roomBounds, dt);
-    Zombie_UpdateAll(gd->zombies, gd->zombieCount, &gd->player, roomBounds, dt);
+    Player_Update(&gd->player, roomMin, roomMax, dt);
+    Zombie_UpdateAll(gd->zombies, gd->zombieCount, &gd->player, roomMin, roomMax, dt);
+    gd->camera.position.x = gd->player.position.x;
+    gd->camera.position.y = gd->player.position.y + 6.0f;
+    gd->camera.position.z = gd->player.position.z + 8.0f;
+    gd->camera.target = (Vector3){gd->player.position.x, gd->player.position.y + 1.0f, gd->player.position.z}
     if(IsKeyPressed(KEY_SPACE))
     {
         /*location of the marker,0=left edge,1=right edge*/
@@ -76,8 +88,18 @@ void Level1_Update(GameData *gd, float dt)
 }
 void Level1_Draw(GameData *gd)
 {
-    ClearBackground(BLACK);
-    DrawTexturePro(
+    ClearBackground((Color){20, 20, 24, 255});
+    BeginMode3D(gd->camera);
+    DrawPlane((Vector3){0, 0, 0}, (Vector2){16.0f, 16.0f}, DARKGRAY);T
+    DrawGrid(16, 1.0f);
+    DrawCube((Vector3){0, 1.5f, roomMin.z}, 16.0f, 3.0f, 0.2f}, GRAY);
+    DrawCube((Vector3){0, 1.5f, roomMax.z}, 16.0f, 3.0f, 0.2f}, GRAY);
+    DrawCube((Vector3){roomMin.x, 1.5f, 0}, 0.2f, 3.0f, 16.0f, GRAY);
+    DrawCube((Vector3){roomMax.x, 1.5f, 0}, 0.2f, 3.0f, 16.0f, GRAY);
+    Zombie_DrawAll(gd->zombies, gd->zombieCount);
+    Player_Draw(&gd->player);
+    EndMode3D();
+    /*DrawTexturePro(
     levelBackground,
     (Rectangle){0, 0, levelBackground.width, levelBackground.height},
     (Rectangle){0, 29, SCREEN_WIDTH, SCREEN_HEIGHT},
@@ -85,12 +107,12 @@ void Level1_Draw(GameData *gd)
     0,
     WHITE
     );
-    DrawRectangleLinesEx(roomBounds, 3, GRAY);
+    DrawRectangleLinesEx(roomBounds, 3, GRAY);*/
     DrawText("LEVEL 1 - ESCAPE THE ROOM", 40, 20, 22, RED);
     DrawText(TextFormat("Coins: %d", gd->totalCoins), 40, 50, 18, GOLD);
     DrawText(TextFormat("Health: %d", gd->player.health), 780, 50, 18, GREEN);
     DrawText(TextFormat("Time left: %.1f", timer), SCREEN_WIDTH /2 - 70, 50, 18, WHITE);
-    Zombie_DrawAll(gd->zombies, gd->zombieCount);
+    /*Zombie_DrawAll(gd->zombies, gd->zombieCount);
     Player_Draw(&gd->player);
     /*draw the marker at the bottom of the screen*/
     int barX = SCREEN_WIDTH / 2 - 150, barY = SCREEN_HEIGHT - 60, barW = 300, barH = 20;
