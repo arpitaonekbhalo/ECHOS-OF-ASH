@@ -1,86 +1,85 @@
-#include "raylib.h"
+/* ECHOES OF ASH
+   main.c  -  window, the game loop, and the scene switcher.
+   
+
+   The whole game is ONE loop:
+       input  ->  update the current scene  ->  draw it */
 #include "game.h"
-#include "level1.h"
 
-/*for starting or restarting the game from level 1*/
+GameData game;
+Player   player;
 
-static void restartgame(GameData *gd)
+void GoToScene(Scene s)
 {
-    gd->totalCoins=0;
-    gd->currentScreen=SCREEN_LEVEL1;
-    Level1_Init(gd);
+    game.scene = s;
+    if (s == SCENE_LEVEL1 || s == SCENE_LEVEL2 || s == SCENE_LEVEL3)
+        game.levelTime = 0.0f;
+
+    switch (s) {
+        case SCENE_LEVEL1: Level1_Init(); break;
+        case SCENE_LEVEL2: Level2_Init(); break;
+        case SCENE_LEVEL3: Level3_Init(); break;
+        default: break;
+    }
 }
 
 int main(void)
 {
-    InitWindow(SCREEN_WIDTH,SCREEN_HEIGHT,"Echoes of Ash");
+    InitWindow(SCREEN_W, SCREEN_H, "ECHOES OF ASH");
     SetTargetFPS(60);
+    SetExitKey(KEY_NULL);          /* ESC must not kill the game */
 
-    GameData gd={0};
-    gd.currentScreen=SCREEN_MENU;
+    /* Audio stays off so the game runs with zero asset files.
+       Uncomment once assets/sounds exists.
+       InitAudioDevice(); */
 
-    while(!WindowShouldClose())
-    {
-        float dt=GetFrameTime();
+    FxReset();
+    game.coins = 0;
+    game.deaths = 0;
+    game.level = 1;
+    GoToScene(SCENE_MENU);
 
-        /*current screen features*/
+    while (!WindowShouldClose() && !game.quitRequested) {
+        float raw = GetFrameTime();
+        float dt;
+        if (raw > 0.05f) raw = 0.05f;   /* stops physics exploding on a lag spike */
 
-        switch(gd.currentScreen)
-        {
-            case SCREEN_MENU:
-            if(IsKeyPressed(KEY_ENTER))
-            restartgame(&gd);
-            break;
+        dt = FxTick(raw);               /* returns 0 while hitstop is running */
 
-            case SCREEN_LEVEL1:
-            Level1_Update(&gd,dt);
-            break;
+        if (game.msgTimer > 0.0f) game.msgTimer -= raw;
 
-            case SCREEN_GAMEOVER:
-            case SCREEN_WIN:
-            if(IsKeyPressed(KEY_ENTER))
-            restartgame(&gd);
-            break;
-
-            default:
-            break;
+        switch (game.scene) {
+            case SCENE_MENU:     Menu_Update(raw);    break;
+            case SCENE_STORY:    Story_Update(raw);   break;
+            case SCENE_LEVEL1:   Level1_Update(dt);   break;
+            case SCENE_LEVEL2:   Level2_Update(dt);   break;
+            case SCENE_LEVEL3:   Level3_Update(dt);   break;
+            case SCENE_RESULTS:  Results_Update(raw); break;
+            case SCENE_GAMEOVER: GameOver_Update(raw);break;
+            case SCENE_VICTORY:  Victory_Update(raw); break;
+            default: break;
         }
-
-        /*Frame for the screen*/
 
         BeginDrawing();
-        switch(gd.currentScreen)
-        {
-            case SCREEN_MENU:
-            ClearBackground(BLACK);
-            DrawText("ECHOES OF ASH",SCREEN_WIDTH/2 - 170,180,46,RED);
-            DrawText("PRESS ENTER TO START",SCREEN_WIDTH/2 - 110,260,20,WHITE);
-            DrawText("WASD/ARROWS to move,SPACE TO interact/attack",SCREEN_WIDTH/2 - 190,300,16,GRAY);
-            break;
+            ClearBackground((Color){ 10, 9, 12, 255 });
 
-            case SCREEN_LEVEL1:
-            Level1_Draw(&gd);
-            break;
+            switch (game.scene) {
+                case SCENE_MENU:     Menu_Draw();     break;
+                case SCENE_STORY:    Story_Draw();    break;
+                case SCENE_LEVEL1:   Level1_Draw();   break;
+                case SCENE_LEVEL2:   Level2_Draw();   break;
+                case SCENE_LEVEL3:   Level3_Draw();   break;
+                case SCENE_RESULTS:  Results_Draw();  break;
+                case SCENE_GAMEOVER: GameOver_Draw(); break;
+                case SCENE_VICTORY:  Victory_Draw();  break;
+                default: break;
+            }
 
-            case SCREEN_GAMEOVER:
-            ClearBackground(BLACK);
-            DrawText("YOU DIED",SCREEN_WIDTH/2 -100,200,40,RED);
-            DrawText(TextFormat("Coins: %d",gd.totalCoins),SCREEN_WIDTH/2 - 60,260,20,GOLD);
-            DrawText("PRESS ENTER TO RETRY",SCREEN_WIDTH/2 - 100,300,18,WHITE);
-            break;
-
-            case SCREEN_WIN:
-            ClearBackground(BLACK);
-            DrawText("YOU SURVIVED" , SCREEN_WIDTH/2 - 140,200,40,GREEN);
-            DrawText(TextFormat("Final Coins: %d", gd.totalCoins),SCREEN_WIDTH/2-80,260,20,GOLD);
-            DrawText("PRESS ENTER TO PLAY AGAIN",SCREEN_WIDTH/2 - 130,300,18,WHITE);
-            break;
-
-            default:
-            break;
-        }
+            DrawMessage();
         EndDrawing();
     }
+
+    /* CloseAudioDevice(); */
     CloseWindow();
     return 0;
 }
