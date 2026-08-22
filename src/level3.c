@@ -295,3 +295,144 @@ static void UpdateShop(void)
     if (IsKeyPressed(KEY_FOUR))  BuyItem(3);
     if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_F)) shopOpen = false;
 }
+/* ARC  */
+static void ArcFireBolt(void)
+{
+    Vector2 ac = RectCenter(arcBox);
+    Vector2 pc = RectCenter(player.box);
+    float base = atan2f(pc.y - ac.y, pc.x - ac.x);
+    int k;
+    for (k = -1; k <= 1; k++) {
+        float a = base + (float)k * 0.16f;
+        Vector2 d; d.x = cosf(a); d.y = sinf(a);
+        SpawnBullet(foeShots, ac, d, ARC_BOLT_SPEED, ARC_BOLT_DAMAGE);
+    }
+}
+
+static void UpdateArc(float dt)
+{
+    Vector2 ac, pc, dir;
+    float d;
+
+    if (!arcAlive) return;
+
+    ac = RectCenter(arcBox);
+    pc = RectCenter(player.box);
+    d  = Dist(ac, pc);
+    dir = Norm((Vector2){ pc.x - ac.x, pc.y - ac.y });
+
+    if (arcHitFlash > 0.0f) arcHitFlash -= dt;
+    arcTimer -= dt;
+
+    arcKnock.x = Approach(arcKnock.x, 0.0f, 700.0f * dt);
+    arcKnock.y = Approach(arcKnock.y, 0.0f, 700.0f * dt);
+    if (arcKnock.x != 0.0f || arcKnock.y != 0.0f)
+        MoveBox(&arcBox, arcKnock.x * dt, arcKnock.y * dt, walls, wallCount);
+
+    switch (arcState) {
+        case ARC_CHASE:
+            MoveBox(&arcBox, dir.x * ARC_SPEED * dt, dir.y * ARC_SPEED * dt, walls, wallCount);
+            if (arcTimer <= 0.0f) {
+                int roll = GetRandomValue(0, 99);
+                if (d < 200.0f && roll < 55) {
+                    arcState = ARC_PULSEWIND; arcTimer = ARC_PULSE_WINDUP; arcRing = ARC_PULSE_RADIUS;
+                } else if (roll < 80) {
+                    arcState = ARC_BOLTWIND; arcTimer = ARC_BOLT_WINDUP;
+                } else {
+                    arcState = ARC_BLINK; arcTimer = 0.35f;
+                }
+            }
+            break;
+
+        case ARC_BOLTWIND:
+            if (arcTimer <= 0.0f) {
+                ArcFireBolt();
+                arcState = ARC_CHASE; arcTimer = 1.1f;
+            }
+            break;
+
+        case ARC_PULSEWIND:
+            arcRing = ARC_PULSE_RADIUS * (arcTimer / ARC_PULSE_WINDUP);   /* ring closes in */
+            if (arcTimer <= 0.0f) { arcState = ARC_PULSE; arcTimer = 0.35f; arcPulse = 0.0f; }
+            break;
+
+        case ARC_PULSE:
+            arcPulse = ARC_PULSE_RADIUS * (1.0f - arcTimer / 0.35f);
+            if (fabsf(d - arcPulse) < 26.0f && player.hurtTimer <= 0.0f)
+                DamagePlayer(ARC_PULSE_DAMAGE, INFECT_STRONG, ac);
+            if (arcTimer <= 0.0f) { arcState = ARC_DRAINED; arcTimer = ARC_DRAINED_TIME; AddShake(6.0f); }
+            break;
+
+        case ARC_DRAINED:                       /* the punish window */
+            if (arcTimer <= 0.0f) { arcState = ARC_CHASE; arcTimer = 0.8f; }
+            break;
+
+        case ARC_BLINK:
+            if (arcTimer <= 0.0f) {
+                int tries;
+                SpawnParticles(ac, 16, (Color){ 140, 216, 255, 255 }, 200.0f, 0.4f, 3.0f);
+                for (tries = 0; tries < 30; tries++) {
+                    float ang = (float)GetRandomValue(0, 628) / 100.0f;
+                    float rr  = 190.0f + (float)GetRandomValue(0, 160);
+                    float nx = pc.x + cosf(ang) * rr;
+                    float ny = pc.y + sinf(ang) * rr;
+                    Rectangle test = { nx - arcBox.width * 0.5f, ny - arcBox.height * 0.5f,
+                                       arcBox.width, arcBox.height };
+                    int w; bool blocked = false;
+                    if (nx < 23.0f * TILE + 40.0f || nx > 36.0f * TILE) continue;
+                    if (ny < 2.0f * TILE + 40.0f  || ny > 13.0f * TILE) continue;
+                    for (w = 0; w < wallCount; w++)
+                        if (CheckCollisionRecs(test, walls[w])) { blocked = true; break; }
+                    if (!blocked) { arcBox.x = test.x; arcBox.y = test.y; break; }
+                }
+                SpawnParticles(RectCenter(arcBox), 16,
+                               (Color){ 140, 216, 255, 255 }, 200.0f, 0.4f, 3.0f);
+                arcState = ARC_CHASE; arcTimer = 0.7f;
+            }
+            break;
+
+        default: break;
+    }
+
+    if (CheckCollisionRecs(arcBox, player.box) && player.hurtTimer <= 0.0f)
+        DamagePlayer(ARC_TOUCH_DAMAGE, INFECT_STRONG, ac);
+}
+
+static void DamageArc(int dmg, Vector2 dir)
+{
+    int actual = (arcState == ARC_DRAINED)
+               ? (dmg * STUN_DAMAGE_BONUS_NUM) / STUN_DAMAGE_BONUS_DEN : dmg;
+
+    arcHP -= actual;
+    arcHitFlash = 0.12f;
+    arcKnock.x = dir.x * 140.0f;
+    arcKnock.y = dir.y * 140.0f;
+
+    SpawnBlood(RectCenter(arcBox), dir, 6);
+    SpawnParticles(RectCenter(arcBox), 4, (Color){ 156, 224, 255, 255 }, 130.0f, 0.25f, 3.0f);
+    AddHitstop(0.03f);
+    AddShake(2.5f);
+
+    if (arcHP <= 0 && arcAlive) {
+        int i;
+        arcAlive = false;
+        SetGridLive(false);               /* he was powering the grid */
+        game.kills++;
+        AddCoins(COIN_ARC_KILL);
+        SpawnParticles(RectCenter(arcBox), 40,
+                       (Color){ 140, 216, 255, 255 }, 260.0f, 0.8f, 4.0f);
+        FlashScreen((Color){ 150, 220, 255, 128 }, 0.7f);
+        AddShake(18.0f);
+        AddHitstop(0.2f);
+        ShowMessage("SPECIMEN 09 IS DOWN  -  the glass is dropping");
+
+        /* the glass drops: shove every '=' wall off the map */
+        for (i = 0; i < wallCount; i++) {
+            if (walls[i].width == TILE && walls[i].height == TILE &&
+                walls[i].x >= 31.0f * TILE && walls[i].x <= 31.5f * TILE) {
+                walls[i].x = -99999.0f; walls[i].y = -99999.0f;
+            }
+        }
+        vossWalking = true;
+    }
+}
