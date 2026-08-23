@@ -665,3 +665,296 @@ void Level3_Update(float dt)
 
     if (player.health <= 0) PlayerDied(SCENE_LEVEL3);
 }
+/*  draw  */
+static void DrawArc(void)
+{
+    Vector2 ac = RectCenter(arcBox);
+    Color body;
+
+    if (!arcAlive) {
+        DrawRectangleRec(arcBox, (Color){ 52, 26, 28, 150 });
+        return;
+    }
+
+    if (arcState == ARC_PULSEWIND)
+        DrawCircleLines((int)ac.x, (int)ac.y, arcRing, (Color){ 255, 200, 90, 190 });
+    if (arcState == ARC_PULSE)
+        DrawCircleLines((int)ac.x, (int)ac.y, arcPulse, (Color){ 150, 220, 255, 240 });
+
+    /* He is a zombie underneath: same green body, same red eyes as every
+       other infected, just carrying a charge. */
+    body = (Color){ 92, 122, 68, 255 };
+    if (arcState == ARC_CHASE)     body = (Color){ 116, 156, 74, 255 };
+    if (arcState == ARC_BOLTWIND)  body = (Color){ 245, 200, 74, 255 };
+    if (arcState == ARC_PULSEWIND) body = (Color){ 245, 160, 60, 255 };
+    if (arcState == ARC_DRAINED)   body = (Color){ 85, 96, 72, 255 };
+    if (arcHitFlash > 0.0f)        body = (Color){ 255, 245, 245, 255 };
+
+    DrawEllipse((int)ac.x, (int)(arcBox.y + arcBox.height - 2),
+                arcBox.width * 0.5f, 6.0f, (Color){ 0, 0, 0, 90 });
+    DrawRectangleRec(arcBox, body);
+    DrawRectangleLinesEx(arcBox, 2.0f, (Color){ 24, 38, 20, 255 });
+    DrawCircle((int)(arcBox.x + 9), (int)(arcBox.y + 11), 3.0f, (Color){ 228, 62, 62, 255 });
+    DrawCircle((int)(arcBox.x + arcBox.width - 9), (int)(arcBox.y + 11), 3.0f,
+               (Color){ 228, 62, 62, 255 });
+    /* the electrode rig Voss bolted onto him */
+    DrawRectangle((int)(arcBox.x + 2), (int)(arcBox.y + arcBox.height * 0.42f),
+                  (int)(arcBox.width - 4), 5, (Color){ 90, 200, 240, 216 });
+
+    if (arcState == ARC_DRAINED)
+        DrawText("!", (int)ac.x - 4, (int)arcBox.y - 22, 22, (Color){ 185, 216, 245, 255 });
+}
+
+static void DrawVoss(void)
+{
+    Vector2 vc = RectCenter(vossBox);
+
+    if (vossDead) {
+        DrawRectangle((int)vossBox.x - 6, (int)(vossBox.y + vossBox.height - 16),
+                      (int)vossBox.width + 12, 16, (Color){ 60, 30, 32, 190 });
+        DrawEllipse((int)vc.x, (int)(vossBox.y + vossBox.height - 6), 34.0f, 12.0f,
+                    (Color){ 120, 25, 28, 128 });
+        return;
+    }
+
+    DrawEllipse((int)vc.x, (int)(vossBox.y + vossBox.height - 2),
+                vossBox.width * 0.5f, 6.0f, (Color){ 0, 0, 0, 90 });
+    /* a lab coat over dark clothes: he reads as a scientist, not a soldier */
+    DrawRectangle((int)vossBox.x, (int)(vossBox.y + 10),
+                  (int)vossBox.width, (int)(vossBox.height - 10),
+                  (Color){ 220, 214, 196, 255 });
+    DrawRectangle((int)(vossBox.x + vossBox.width * 0.5f - 4), (int)(vossBox.y + 14),
+                  8, (int)(vossBox.height - 14), (Color){ 74, 70, 64, 255 });
+    DrawRectangle((int)(vossBox.x + 5), (int)vossBox.y,
+                  (int)(vossBox.width - 10), 13, (Color){ 200, 168, 140, 255 });
+    DrawRectangleLinesEx((Rectangle){ vossBox.x, vossBox.y + 10,
+                                      vossBox.width, vossBox.height - 10 },
+                         2.0f, (Color){ 240, 234, 218, 255 });
+
+    if (vossArmed) {
+        Vector2 pc = RectCenter(player.box);
+        float a = atan2f(pc.y - vc.y, pc.x - vc.x);
+        DrawLineEx(vc, (Vector2){ vc.x + cosf(a) * 20.0f, vc.y + sinf(a) * 20.0f },
+                   4.0f, (Color){ 225, 225, 232, 255 });
+    }
+
+    DrawText("DR. VOSS", (int)vc.x - 32, (int)vossBox.y - 12, 14,
+             (Color){ 240, 234, 218, 255 });
+}
+
+static void DrawShop(void)
+{
+    int w = 560, h = 330;
+    int x = SCREEN_W / 2 - w / 2, y = SCREEN_H / 2 - h / 2;
+    int iy, i;
+
+    DrawRectangle(x, y, w, h, (Color){ 6, 6, 9, 245 });
+    DrawRectangleLinesEx((Rectangle){ (float)x, (float)y, (float)w, (float)h }, 2.0f,
+        shopFlash > 0.0f ? (Color){ 228, 72, 72, 255 } : (Color){ 200, 168, 96, 255 });
+
+    DrawText("SUPPLY CACHE", x + 28, y + 22, 20, (Color){ 240, 196, 62, 255 });
+    DrawText(TextFormat("COINS  %d", game.coins), x + w - 160, y + 24, 15,
+             (Color){ 230, 225, 212, 255 });
+    DrawRectangle(x + 28, y + 54, w - 56, 1, (Color){ 46, 42, 34, 255 });
+    DrawText("everything you picked up in the base and the station",
+             x + 28, y + 66, 13, (Color){ 138, 130, 112, 255 });
+
+    iy = y + 104;
+    for (i = 0; i < SHOP_COUNT; i++) {
+        bool owned  = (strcmp(SHOP[i].name, "PLATING") == 0 && hasPlating);
+        bool afford = (game.coins >= SHOP[i].cost) && !owned;
+        DrawText(TextFormat("[%d]  %s", i + 1, SHOP[i].name), x + 36, iy, 19,
+                 afford ? (Color){ 230, 225, 212, 255 } : (Color){ 86, 80, 96, 255 });
+        DrawText(SHOP[i].note, x + 210, iy + 3, 14,
+                 afford ? (Color){ 138, 132, 150, 255 } : (Color){ 74, 70, 84, 255 });
+        DrawText(owned ? "FITTED" : TextFormat("%d", SHOP[i].cost), x + w - 96, iy, 19,
+                 owned  ? (Color){ 111, 191, 154, 255 }
+                        : afford ? (Color){ 240, 196, 62, 255 }
+                                 : (Color){ 106, 90, 58, 255 });
+        iy += 46;
+    }
+
+    if (shopFlash > 0.0f)
+        DrawText("not enough coins", x + 28, y + h - 34, 13, (Color){ 228, 72, 72, 255 });
+    else
+        DrawText("[1-4] buy      [F] or [ESC] close", x + 28, y + h - 34, 13,
+                 (Color){ 110, 100, 128, 255 });
+}
+
+static void DrawDialogue(void)
+{
+    int bh = 118, by = SCREEN_H - bh - 24;
+    const char *who  = VOSS_SPEAKER[dialogueLine];
+    const char *line = VOSS_LINE[dialogueLine];
+    const char *hint;
+
+    DrawRectangle(60, by, SCREEN_W - 120, bh, (Color){ 6, 6, 9, 237 });
+    DrawRectangleLinesEx((Rectangle){ 60.0f, (float)by,
+                                      (float)(SCREEN_W - 120), (float)bh },
+                         2.0f, (Color){ 94, 84, 104, 255 });
+
+    if (who[0] != '\0')
+        DrawText(who, 88, by + 20, 14,
+                 (strcmp(who, "YOU") == 0) ? (Color){ 140, 200, 230, 255 }
+                                           : (Color){ 216, 180, 120, 255 });
+    DrawText(line, 88, by + 50, 24, (Color){ 230, 225, 212, 255 });
+
+    hint = TextFormat("[SPACE] continue   %d / %d", dialogueLine + 1, VOSS_LINE_COUNT);
+    DrawText(hint, SCREEN_W - 88 - MeasureText(hint, 12), by + bh - 24, 12,
+             (Color){ 110, 100, 120, 255 });
+}
+
+static Rectangle ObjectiveTarget(void)
+{
+    if (!gridDoorOpen) return releasePanel;
+    if (arcAlive)      return arcBox;
+    if (!vossDead)     return vossBox;
+    return machine;
+}
+
+static void DrawObjectivePointer(void)
+{
+    Rectangle t = ObjectiveTarget();
+    Vector2 tc = RectCenter(t);
+    Vector2 pc = RectCenter(player.box);
+    float d = Dist(pc, tc);
+    float a, sx, sy, fade;
+    Vector2 v1, v2, v3;
+    const char *lbl;
+
+    if (d < 140.0f) return;
+
+    a  = atan2f(tc.y - pc.y, tc.x - pc.x);
+    sx = SCREEN_W * 0.5f + cosf(a) * 210.0f;
+    sy = SCREEN_H * 0.5f + sinf(a) * 210.0f;
+    fade = (d - 140.0f) / 300.0f;
+    if (fade > 1.0f) fade = 1.0f;
+    fade *= 0.75f;
+
+    v1.x = sx + cosf(a) * 14.0f;        v1.y = sy + sinf(a) * 14.0f;
+    v2.x = sx + cosf(a + 2.5f) * 11.0f; v2.y = sy + sinf(a + 2.5f) * 11.0f;
+    v3.x = sx + cosf(a - 2.5f) * 11.0f; v3.y = sy + sinf(a - 2.5f) * 11.0f;
+    DrawTriangle(v1, v2, v3, (Color){ 240, 196, 62, (unsigned char)(255.0f * fade) });
+
+    lbl = TextFormat("%dm", (int)(d / 64.0f));
+    DrawText(lbl, (int)(sx - MeasureText(lbl, 12) * 0.5f), (int)(sy + 20), 12,
+             (Color){ 240, 196, 62, (unsigned char)(200.0f * fade) });
+}
+
+static const char *CurrentObjective(void)
+{
+    if (!gridDoorOpen) return "OBJECTIVE: cross the grid, reach the release";
+    if (arcAlive)      return "OBJECTIVE: something is in the way";
+    if (dialogueOn)    return "";
+    if (!vossDead)     return "OBJECTIVE: he is the lock";
+    if (!tubePlaced)   return "OBJECTIVE: place the tube";
+    return "";
+}
+
+void Level3_Draw(void)
+{
+    BeginMode2D(cam);
+        DrawFloor(MAP_COLS, MAP_ROWS);
+        DrawWalls(walls, wallCount);
+
+        /* supply cache */
+        DrawRectangle((int)supplyCache.x + 8, (int)supplyCache.y + 8,
+                      (int)TILE - 16, (int)TILE - 16, (Color){ 62, 58, 46, 255 });
+        DrawRectangleLinesEx((Rectangle){ supplyCache.x + 8, supplyCache.y + 8,
+                                          TILE - 16, TILE - 16 },
+                             2.0f, (Color){ 200, 168, 96, 255 });
+        DrawText("SUPPLY [F]", (int)supplyCache.x - 14, (int)supplyCache.y - 20, 13,
+                 (Color){ 240, 196, 62, 255 });
+
+        /* release panel */
+        DrawRectangle((int)releasePanel.x + 10, (int)releasePanel.y + 10,
+                      (int)TILE - 20, (int)TILE - 20,
+                      gridDoorOpen ? (Color){ 62, 106, 78, 255 }
+                                   : (Color){ 46, 68, 80, 255 });
+        DrawRectangleLinesEx((Rectangle){ releasePanel.x + 10, releasePanel.y + 10,
+                                          TILE - 20, TILE - 20 }, 2.0f,
+                             gridDoorOpen ? (Color){ 140, 224, 168, 255 }
+                                          : (Color){ 111, 168, 196, 255 });
+        DrawText(gridDoorOpen ? "RELEASED" : "RELEASE [F]",
+                 (int)releasePanel.x - 16, (int)releasePanel.y - 20, 13,
+                 (Color){ 143, 208, 230, 255 });
+
+        if (!gridDoorOpen) {
+            DrawRectangleRec(gridDoor, (Color){ 74, 62, 82, 255 });
+            DrawRectangleLinesEx(gridDoor, 3.0f, (Color){ 180, 156, 196, 255 });
+        }
+
+        /* the machine */
+        {
+            bool ready = (!arcAlive && vossDead && !dialogueOn && !tubePlaced);
+            DrawRectangle((int)machine.x + 6, (int)machine.y + 6,
+                          (int)TILE - 12, (int)TILE - 12,
+                          tubePlaced ? (Color){ 124, 230, 192, 255 }
+                                     : ready ? (Color){ 62, 106, 94, 255 }
+                                             : (Color){ 58, 58, 68, 255 });
+            DrawRectangleLinesEx((Rectangle){ machine.x + 6, machine.y + 6,
+                                              TILE - 12, TILE - 12 }, 3.0f,
+                                 tubePlaced ? (Color){ 216, 255, 242, 255 }
+                                            : ready ? (Color){ 140, 224, 200, 255 }
+                                                    : (Color){ 94, 94, 106, 255 });
+            if (ready) {
+                float pulse = 0.5f + 0.5f * sinf((float)GetTime() * 2.2f);
+                DrawCircleLines((int)RectCenter(machine).x, (int)RectCenter(machine).y,
+                                30.0f + pulse * 8.0f,
+                                (Color){ 140, 224, 200,
+                                         (unsigned char)(76 + 114 * pulse) });
+            }
+            DrawText(tubePlaced ? "RUNNING" : "DISPERSAL",
+                     (int)machine.x - 10, (int)machine.y - 20, 13,
+                     (Color){ 156, 224, 200, 255 });
+        }
+
+        DrawPickups(pickups, pickupCount, lastDt);
+        DrawBeams();
+        DrawArc();
+        DrawVoss();
+        DrawBullets(bullets,  (Color){ 255, 224, 140, 255 });
+        DrawBullets(foeShots, (Color){ 150, 220, 255, 255 });
+        DrawParticles();
+        DrawPlayer();
+    EndMode2D();
+
+    DrawDarkness(cam, RectCenter(player.box), LIGHT_RADIUS, DARKNESS_ALPHA);
+    DrawInfectionOverlay();
+    DrawVignette(70);
+    DrawFloatingText(cam);
+    DrawFlash();
+
+    if (!shopOpen && !dialogueOn) DrawObjectivePointer();
+    DrawHUD(CurrentObjective());
+
+    /* ARC's health bar */
+    if (arcAlive) {
+        float pct = (float)arcHP / (float)ARC_MAX_HP;
+        int bw = 560;
+        DrawRectangle(SCREEN_W / 2 - bw / 2 - 4, SCREEN_H - 72, bw + 8, 32,
+                      (Color){ 0, 0, 0, 184 });
+        DrawRectangle(SCREEN_W / 2 - bw / 2, SCREEN_H - 68, bw, 24,
+                      (Color){ 34, 50, 62, 255 });
+        DrawRectangle(SCREEN_W / 2 - bw / 2, SCREEN_H - 68, (int)(bw * pct), 24,
+                      (Color){ 79, 168, 216, 255 });
+        DrawRectangleLines(SCREEN_W / 2 - bw / 2, SCREEN_H - 68, bw, 24,
+                           (Color){ 207, 235, 255, 255 });
+        DrawText("SPECIMEN 09  -  \"ARC\"", SCREEN_W / 2 - bw / 2, SCREEN_H - 92, 17,
+                 (Color){ 220, 242, 255, 255 });
+    }
+
+    if (player.injectTimer > 0.0f)
+        DrawHoldBar(player.injectTimer / INJECT_HOLD_TIME, "INJECTING - DON'T MOVE");
+
+    if (dialogueOn) DrawDialogue();
+    if (shopOpen)   DrawShop();
+
+    /* the white-out at the very end */
+    if (tubePlaced) {
+        float t = endTimer / 1.8f;
+        if (t > 1.0f) t = 1.0f;
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H,
+                      (Color){ 255, 255, 255, (unsigned char)(255.0f * t) });
+    }
+}
