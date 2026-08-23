@@ -436,3 +436,232 @@ static void DamageArc(int dmg, Vector2 dir)
         vossWalking = true;
     }
 }
+/*  update  */
+void Level3_Update(float dt)
+{
+    int i;
+    Rectangle zone;
+
+    lastDt = dt;
+    game.levelTime += dt;
+    game.level = 3;
+    game.retryScene = SCENE_LEVEL3;
+
+    if (shopFlash > 0.0f) shopFlash -= dt;
+
+    /* the shop swallows everything else while it is up */
+    if (shopOpen) {
+        UpdateShop();
+        UpdateCameraFollow(&cam, dt, 0.0f);
+        return;
+    }
+
+    AimAtMouse(cam);
+    UpdatePlayerMovement(walls, wallCount, dt);
+    UpdateCameraFollow(&cam, dt, CAMERA_LEAN);
+    UpdateInfection(0.0f, dt);
+    UpdateInjector(dt);
+
+    if (IsKeyPressed(KEY_ONE))   SwitchWeapon(WEAP_KNIFE);
+    if (IsKeyPressed(KEY_TWO))   SwitchWeapon(WEAP_PISTOL);
+    if (IsKeyPressed(KEY_THREE)) SwitchWeapon(WEAP_SHOTGUN);
+
+    /*  the supply cache  */
+    zone = (Rectangle){ supplyCache.x - 28.0f, supplyCache.y - 28.0f,
+                        supplyCache.width + 56.0f, supplyCache.height + 56.0f };
+    if (CheckCollisionRecs(player.box, zone)) {
+        if (IsKeyPressed(KEY_F)) shopOpen = true;
+        else if (game.msgTimer <= 0.0f) ShowMessage("supply cache  [F]  -  spend your coins");
+    }
+
+    /*  the grid (lives in beams.c)  */
+    UpdateBeams(dt);
+    if (GridIsLive()) {
+        for (i = 0; i < BeamCount(); i++) {
+            /* the antechamber goes quiet behind you; his room comes alive */
+            if (BeamInVossRoom(i) && !gridDoorOpen) continue;
+            if (!BeamInVossRoom(i) && gridDoorOpen) continue;
+            if (BeamHitsPlayer(i) && player.hurtTimer <= 0.0f)
+                DamagePlayer(hasPlating ? BEAM_DAMAGE_PLATED : BEAM_DAMAGE, 0,
+                             RectCenter(player.box));
+        }
+    }
+
+    /*  shooting  */
+    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && player.injectTimer <= 0.0f && !dialogueOn)
+        FireWeapon(bullets, NULL, 0);
+
+    UpdateBullets(bullets, walls, wallCount, dt);
+    UpdateBullets(foeShots, walls, wallCount, dt);
+
+    /* their shots hitting you */
+    for (i = 0; i < MAX_BULLETS; i++) {
+        if (!foeShots[i].active) continue;
+        if (CheckCollisionCircleRec(foeShots[i].pos, 4.0f, player.box)) {
+            foeShots[i].active = false;
+            if (player.hurtTimer <= 0.0f)
+                DamagePlayer(foeShots[i].damage, INFECT_STRONG, foeShots[i].pos);
+        }
+    }
+
+    /* your shots hitting ARC */
+    if (arcAlive) {
+        for (i = 0; i < MAX_BULLETS; i++) {
+            if (!bullets[i].active) continue;
+            if (CheckCollisionCircleRec(bullets[i].pos, 4.0f, arcBox)) {
+                Vector2 d = Norm(bullets[i].vel);
+                bullets[i].active = false;
+                DamageArc(bullets[i].damage, d);
+                if (!arcAlive) break;
+            }
+        }
+        if (arcAlive && player.attackTimer > 0.14f &&
+            CheckCollisionRecs(MeleeHitbox(), arcBox))
+            DamageArc(30, player.aim);
+    }
+
+    /* Voss introduces the specimen the moment you step in, so ARC is not
+       a stranger who appears out of nowhere */
+    if (gridDoorOpen && !vossGreeted && arcAlive &&
+        RectCenter(player.box).x > 23.0f * TILE) {
+        vossGreeted = true;
+        ShowMessage("VOSS: Specimen nine. He was a corporal, once.");
+        FlashScreen((Color){ 120, 180, 220, 46 }, 0.5f);
+    }
+
+    UpdateArc(dt);
+
+    /*  Voss walks out  */
+    if (vossWalking && !vossArrived) {
+        Vector2 vc = { vossBox.x, vossBox.y };
+        float dx = vossTarget.x - vc.x, dy = vossTarget.y - vc.y;
+        float dd = sqrtf(dx * dx + dy * dy);
+        if (dd < 6.0f) { vossArrived = true; vossWalking = false; }
+        else {
+            vossBox.x += (dx / dd) * VOSS_WALK_SPEED * dt;
+            vossBox.y += (dy / dd) * VOSS_WALK_SPEED * dt;
+        }
+    }
+
+    /* He starts talking on his own. You never have to walk up to him. */
+    if (vossArrived && !dialogueOn && !vossSpoken && !tubePlaced) {
+        vossWait += dt;
+        if (vossWait > 1.0f) { vossSpoken = true; dialogueOn = true; dialogueLine = 0; }
+    }
+
+    if (dialogueOn) {
+        if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_ENTER)) {
+            dialogueLine++;
+            if (dialogueLine >= VOSS_LINE_COUNT) {
+                dialogueOn = false;
+                dialogueLine = 0;
+                vossArmed = true; vossFire = 1.0f;   /* he draws */
+                ShowMessage("he has a sidearm");
+            }
+        }
+    }
+
+    /*  he fights, badly, and dies to one hit  */
+    if (vossArmed && !vossDead) {
+        Vector2 vc = RectCenter(vossBox);
+        Vector2 pc = RectCenter(player.box);
+        float d = Dist(vc, pc);
+        bool killed = false;
+
+        if (d < VOSS_BACKAWAY_RANGE) {                    /* backing away */
+            Vector2 away = Norm((Vector2){ vc.x - pc.x, vc.y - pc.y });
+            MoveBox(&vossBox, away.x * VOSS_BACKAWAY_SPEED * dt,
+                              away.y * VOSS_BACKAWAY_SPEED * dt, walls, wallCount);
+        }
+        vossFire -= dt;
+        if (vossFire <= 0.0f && d < 620.0f) {
+            float a = atan2f(pc.y - vc.y, pc.x - vc.x)
+                    + (float)GetRandomValue(-22, 22) / 100.0f;   /* a wild shot */
+            Vector2 dir; dir.x = cosf(a); dir.y = sinf(a);
+            vossFire = VOSS_FIRE_RATE;
+            SpawnBullet(foeShots, vc, dir, VOSS_SHOT_SPEED, VOSS_SHOT_DAMAGE);
+            SpawnParticles(vc, 3, (Color){ 255, 220, 140, 255 }, 80.0f, 0.12f, 2.5f);
+        }
+
+        for (i = 0; i < MAX_BULLETS; i++) {
+            if (!bullets[i].active) continue;
+            if (CheckCollisionCircleRec(bullets[i].pos, 4.0f, vossBox)) {
+                bullets[i].active = false; killed = true; break;
+            }
+        }
+        if (!killed && player.attackTimer > 0.14f &&
+            CheckCollisionRecs(MeleeHitbox(), vossBox)) killed = true;
+
+        if (killed) {
+            vossDead = true;
+            SpawnBlood(RectCenter(vossBox), (Vector2){ 0.0f, 1.0f }, 28);
+            FlashScreen((Color){ 150, 20, 20, 140 }, 0.8f);
+            AddShake(16.0f);
+            AddHitstop(0.28f);
+            AddCoins(COIN_VOSS_KILL);
+            ShowMessage("the lock is open");
+        }
+    }
+
+    /*  pickups  */
+    for (i = 0; i < pickupCount; i++) {
+        if (pickups[i].taken) continue;
+        if (!CheckCollisionRecs(player.box, pickups[i].box)) continue;
+        pickups[i].taken = true;
+        switch (pickups[i].type) {
+            case PICK_COIN: AddCoins(pickups[i].amount); break;
+            case PICK_AMMO:
+                player.ammo[WEAP_PISTOL] += pickups[i].amount;
+                if (player.hasWeapon[WEAP_SHOTGUN]) player.ammo[WEAP_SHOTGUN] += 3;
+                ShowMessage("resupplied");
+                break;
+            case PICK_INJECTOR:
+                player.injectors++;
+                ShowMessage("+1 injector");
+                break;
+            default: break;
+        }
+    }
+
+    /*  the release panel opens his door  */
+    if (!gridDoorOpen) {
+        zone = (Rectangle){ releasePanel.x - 28.0f, releasePanel.y - 28.0f,
+                            releasePanel.width + 56.0f, releasePanel.height + 56.0f };
+        if (CheckCollisionRecs(player.box, zone)) {
+            if (IsKeyPressed(KEY_F)) {
+                gridDoorOpen = true;
+                DisableWall(gridDoorWall);
+                AddCoins(COIN_LOCK_OPENED);
+                FlashScreen((Color){ 200, 220, 150, 115 }, 0.5f);
+                AddShake(10.0f);
+                ShowMessage("DOOR RELEASED  -  he is through there");
+            } else if (game.msgTimer <= 0.0f) {
+                ShowMessage("release panel  [F]");
+            }
+        }
+    }
+
+    /*  the machine: the whole reason for all of this  */
+    if (!arcAlive && vossDead && !dialogueOn && !tubePlaced) {
+        zone = (Rectangle){ machine.x - 28.0f, machine.y - 28.0f,
+                            machine.width + 56.0f, machine.height + 56.0f };
+        if (CheckCollisionRecs(player.box, zone)) {
+            if (IsKeyPressed(KEY_F)) {
+                tubePlaced = true;
+                AddCoins(COIN_MACHINE);
+                FlashScreen((Color){ 255, 255, 255, 240 }, 1.6f);
+                AddShake(22.0f);
+                ShowMessage("THE MACHINE IS RUNNING");
+            } else if (game.msgTimer <= 0.0f) {
+                ShowMessage("place the tube  [F]");
+            }
+        }
+    }
+
+    if (tubePlaced) {
+        endTimer += dt;
+        if (endTimer > 2.2f) { SaveLoadout(); game.scene = SCENE_RESULTS; return; }
+    }
+
+    if (player.health <= 0) PlayerDied(SCENE_LEVEL3);
+}
