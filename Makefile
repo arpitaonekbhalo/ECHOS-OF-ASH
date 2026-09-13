@@ -44,13 +44,13 @@ endif
 ifeq ($(PLATFORM),WINDOWS)
     CC      = gcc
     OUT     = echoes-of-ash.exe
-    RUN     = $(OUT)
+    RUN     = ./$(OUT)
     RM      = del /Q
     # Where you unzipped raylib. Forward slashes, even on Windows.
     # Override without editing this file:   make RAYLIB_PATH=D:/stuff/raylib
-    RAYLIB_PATH ?= C:/raylib/raylib
-    CFLAGS  = -Wall -Wextra -std=c99 -Isrc -I$(RAYLIB_PATH)/src
-    LDFLAGS = -L$(RAYLIB_PATH)/src -lraylib -lopengl32 -lgdi32 -lwinmm -lm
+    RAYLIB_PATH ?= C:/raylib
+    CFLAGS  = -Wall -Wextra -std=c99 -Isrc -I$(RAYLIB_PATH)/include
+    LDFLAGS = -L$(RAYLIB_PATH)/lib -lraylib -lopengl32 -lgdi32 -lwinmm -lm
 endif
 
 # ---------------- Linux ----------------

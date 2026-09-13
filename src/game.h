@@ -5,6 +5,12 @@
 #include <stdbool.h>
 #include "tuning.h"
 
+#if defined(RAYLIB_VERSION_MAJOR) && \
+    (RAYLIB_VERSION_MAJOR > 5 || (RAYLIB_VERSION_MAJOR == 5 && RAYLIB_VERSION_MINOR >= 5))
+    #define DrawCircleGradient(cx, cy, r, inner, outer) \
+            DrawCircleGradient((Vector2){ (float)(cx), (float)(cy) }, (r), (inner), (outer))
+#endif
+
 #define SCREEN_W 1280
 #define SCREEN_H 720
 
